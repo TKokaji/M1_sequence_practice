@@ -230,7 +230,8 @@ FASTAとGTFで染色体名が一致している必要があります。Ensembl�
 cd ~/rnaseq_intro
 ```
 
-問：GTFファイルの最初の遺伝子のIDや名前は？
+> [!IMPORTANT]
+> **問：GTFファイルの最初の遺伝子のIDや名前は？**
 
 <details>
 <summary>答を見る</summary>
@@ -253,6 +254,8 @@ sample_R2.fastq.gz
 ```
 
 この2ファイルを作業ディレクトリ内の`data`ディレクトリに配置してください。
+
+ちなみにこのFASTQの元となったファイルは、https://ddbj.nig.ac.jp/public/ddbj_database/dra/fastq/DRA016/DRA016282/DRX449393/　から入手可能です。
 
 ### 5.2 FASTQとは
 
@@ -312,11 +315,11 @@ R1とR2の2ファイルがあることを確認します。
 ### 5.5 gzip圧縮されたFASTQの先頭を表示する
 
 ```bash
-gzip -dc data/sample_R1.fastq.gz | head -n 8
-gzip -dc data/sample_R2.fastq.gz | head -n 8
+gzip -dc data/sample_R1.fastq.gz | head
+gzip -dc data/sample_R2.fastq.gz | head
 ```
 
-`head -n 8`としているため、それぞれ2リード分が表示されます。
+`head`としているため、それぞれ10行分、すなわち2リード分＋αが表示されます。
 
 ### 5.6 リード数を数える
 
@@ -328,6 +331,17 @@ gzip -dc data/sample_R2.fastq.gz | awk 'END {print NR / 4}'
 ```
 
 paired-endでは、R1とR2のリード数が一致することを確認します。異なる場合は、正しいペアとして扱えないリードが含まれている可能性があります。
+
+> [!IMPORTANT]
+> **問：R1の最初のリードは何ですか？R1とR2のリード数は？**
+
+<details>
+<summary>答を見る</summary>
+答：CCCAGNTGTCCGAGCTCCTCCTCCCTGTTGAAGCATCTGCACAGGTCCAGCTGTCACTGCTTGGGGACTTGGCCTTのリード、基本的に高品質(E)、一つ低品質(#)な塩基=Nも含まれます。
+
+R1とR2のリード数はいずれも3137561。
+
+</details>
 
 ---
 
@@ -416,19 +430,30 @@ FastQCの`PASS`、`WARN`、`FAIL`は、一定の基準に基づく機械的な�
 4. ライブラリの種類や解析目的から、マッピングへの影響を考える
 5. 必要な場合だけ前処理を行う
 
-### 6.6 アダプター除去と低品質配列のトリミング
 
-アダプター除去は、リードに含まれたアダプター配列を取り除く処理です。低品質トリミングは、主にリード末端のqualityが低い塩基を除く処理です。
+> [!important]
+> 問：FastQC ReportのPer base sequence qualityとPer base sequence contentを見て、比較的問題のあるリードの位置はどこですか？
+
+<details>
+<summary>回答例</summary>
+比較的問題のあるリードの位置は、リードの5'末端付近(1-5塩基目)および3'末端（76塩基目）です。
+</details>
+
+---
+
+## 7. fastpでFASTQを前処理する
+
+FASTQの品質を確認した上で、必要に応じて前処理を行います。
+
+FASTQの前処理には、アダプター除去や低品質リードのトリミングや除去があります。
+
+アダプター除去は、リードに含まれたアダプター配列を取り除く処理です。低品質トリミングは、主にリード末端のqualityが低い塩基を除く処理です。低品質リードの除去は、全体の平均qualityが低いリードを取り除く処理です。
 
 これらの処理によってマッピングが改善することがありますが、常に行えばよいわけではありません。過剰にトリミングするとリードが短くなり、かえってユニークにマッピングしにくくなる場合があります。
 
 したがって、FastQCで黄色や赤の判定が出たことだけを理由に自動的にトリミングするのではなく、グラフの形と問題の程度を確認して判断します。
 
-今回の教材用FASTQは元データから10%を無作為抽出したもので、元データのアダプター混入や低品質末端も引き継いでいます。そのため、次章でアダプター除去と低品質末端のトリミングを実行し、処理前後のFastQCを比較します。
-
----
-
-## 7. fastpでFASTQを前処理する
+### 7.1 fastpの使い方
 
 `fastp`を使って、paired-endの対応関係を保ったまま、アダプター配列の除去と低品質末端のトリミングを行います。
 
@@ -447,8 +472,6 @@ fastp \
     --json results/fastp/sample_fastp.json \
     --thread 4
 ```
-
-### 7.1 主なオプション
 
 | オプション | 意味 |
 | --- | --- |
@@ -489,19 +512,23 @@ fastqc \
 
 前処理後にすべての警告が消える必要はありません。目的は、マッピングを妨げるアダプター配列や低品質末端を減らすことです。
 
+> [!important]
+> 問：fastpによって除去されたリードは全体の何パーセントですか？
+
+ <details>
+ <summary>回答例</summary>
+ 約4.4%です。
+</details>
+
 ---
 
 ## 8. STARインデックスを確認する
 
-STARはマッピングを高速に行うため、リファレンスゲノムから作成した検索用インデックスを使用します。
+続いてSTARによるマッピングを行います。
+
+その前準備として、リファレンスゲノムと遺伝子アノテーションから検索用インデックスを作成します。
 
 今回は、Ensembl release 116のGRCm39全ゲノムFASTAとGTFから事前に作成したSTARインデックスを配布します。
-
-全ゲノムインデックスを使用する理由は次のとおりです。
-
-- 通常のRNA-seq解析と同じ条件でマッピングできる
-- 他の染色体にも類似配列を持つリードのmulti-mappingを評価できる
-- 同じインデックスを別のマウスRNA-seqデータにも再利用できる
 
 ### 8.1 配布されたインデックスを確認する
 
@@ -526,10 +553,10 @@ STAR \
         reference/Mus_musculus.GRCm39.dna.primary_assembly.fa \
     --sjdbGTFfile \
         reference/Mus_musculus.GRCm39.116.gtf \
-    --sjdbOverhang 99
+    --sjdbOverhang 100
 ```
 
-`--sjdbOverhang`は、基本的に`リード長 - 1`を指定します。上の例は100 bpリードを想定しているため`99`です。教材用FASTQのリード長が異なる場合は調整します。
+`--sjdbOverhang`は、`リード長 - 1`を指定するのが王道です。今回の場合は、長さが76 bpのリードを想定しているため`75`ですが、デフォルト値の100でも実用上問題がないことが多いそうです。
 
 全ゲノムのSTARインデックス作成には時間、メモリ、ディスク容量が必要です。そのため、本演習では教員側で作成したものを配布します。
 
@@ -592,7 +619,7 @@ cat results/star/sample_Log.final.out
 - Number of reads mapped to multiple loci
 - % of reads unmapped
 
-今回のFASTQは元データの10%を無作為抽出したものなので、十分なリード数があれば、マッピング率は元データとおおむね同程度になると予想されます。ただし、リード数が少なくなるため、小さな割合の項目は元データより変動しやすくなります。
+今回のFASTQは元データの10%を無作為抽出したものなので、十分なリード数があれば、マッピング率は元データとおおむね同程度になると予想されます。
 
 > **考えてみよう**
 >
@@ -659,13 +686,13 @@ samtools quickcheck -v "$BAM_FILE"
 
 マッピング率や、一意にマッピングされたリードペアの割合は、前章で確認したSTARの`Log.final.out`を使用します。
 
-参考として、BAMに含まれるalignment recordの内訳は次のコマンドで確認できます。
+ちなみに、BAMに含まれる**アラインメント**の内訳は次のコマンドで確認できます。
 
 ```bash
 samtools flagstat "$BAM_FILE"
 ```
 
-STARのログは主にリードペア単位、`flagstat`はBAM内のR1・R2それぞれのrecord単位で集計します。また、今回のSTARコマンドでは未マッピングリードをBAMへ出力していません。そのため、`flagstat`の`mapped`の割合をFASTQ全体のマッピング率として解釈することはできません。
+STARのログは主に**リードペア単位**、`flagstat`はBAM内のR1・R2それぞれのrecord単位で集計します。そのため、`flagstat`の`mapped`の割合をFASTQ全体のマッピング率として解釈することはできません。
 
 ---
 
