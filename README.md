@@ -226,10 +226,6 @@ head Mus_musculus.GRCm39.116.gtf
 
 FASTAとGTFで染色体名が一致している必要があります。Ensemblのファイルでは、通常`chr15`ではなく`15`と表記されます。
 
-```bash
-cd ~/rnaseq_intro
-```
-
 > [!IMPORTANT]
 > **問：GTFファイルの最初の遺伝子のIDや名前は？**
 
@@ -239,6 +235,51 @@ cd ~/rnaseq_intro
 
 9列目に`gene_id "ENSMUSG00000104478"; gene_name "Gm38212"`が含まれています。
 </details>
+
+### 4.6 1番染色体用のFASTAとGTFを作る
+
+今回の演習では、計算量を抑えるため、マウス1番染色体だけを含むリファレンスを使用します。
+
+まず、全ゲノムFASTAの検索用インデックスを作ります。
+
+```bash
+samtools faidx Mus_musculus.GRCm39.dna.primary_assembly.fa
+```
+
+続いて、配列名が`1`の染色体を取り出します。
+
+```bash
+samtools faidx \
+    Mus_musculus.GRCm39.dna.primary_assembly.fa \
+    1 \
+    > Mus_musculus.GRCm39.dna.chromosome.1.fa
+```
+
+作成したFASTAのヘッダーを確認します。
+
+```bash
+grep '^>' Mus_musculus.GRCm39.dna.chromosome.1.fa
+```
+
+出力される配列名が`1`だけであることを確認します。
+
+次に、全ゲノムGTFから、コメント行と1番染色体のannotationを取り出します。
+
+```bash
+awk '$1 == "1"' \
+    Mus_musculus.GRCm39.116.gtf \
+    > Mus_musculus.GRCm39.116.chromosome.1.gtf
+```
+
+作成したGTFの先頭を確認します。
+
+```bash
+head Mus_musculus.GRCm39.116.chromosome.1.gtf
+```
+
+```bash
+cd ~/rnaseq_intro
+```
 
 ---
 
@@ -254,6 +295,8 @@ sample_R2.fastq.gz
 ```
 
 この2ファイルを作業ディレクトリ内の`data`ディレクトリに配置してください。
+
+今回配布するFASTQは、元のRNA-seq FASTQから**リードペアを無作為に10%抽出した教材用データ**です。
 
 ちなみにこのFASTQの元となったファイルは、https://ddbj.nig.ac.jp/public/ddbj_database/dra/fastq/DRA016/DRA016282/DRX449393/　から入手可能です。
 
@@ -278,8 +321,6 @@ FFFFFFFFFFFF...
 | 4行目 | 各塩基のquality score |
 
 今回のFASTQはgzip形式で圧縮されているため、ファイル名の末尾が`.fastq.gz`になっています。
-
-今回配布するFASTQは、元のRNA-seq FASTQから**リードペアを無作為に10%抽出した教材用データ**です。R1だけ、またはR2だけを別々に抽出したのではなく、対応するR1とR2が同時に残るように教員側で作成しています。
 
 ### 5.3 paired-endとは
 
@@ -522,13 +563,55 @@ fastqc \
 
 ---
 
-## 8. STARインデックスを確認する
+## 8. STARインデックスを作成する
 
 続いてSTARによるマッピングを行います。
 
 その前準備として、リファレンスゲノムと遺伝子アノテーションから検索用インデックスを作成します。
 
-今回は、Ensembl release 116のGRCm39全ゲノムFASTAとGTFから事前に作成したSTARインデックスを配布します。
+今回は、Ensembl release 116のGRCm39の1番染色体のFASTAとGTFから事前に作成した縮小版STARインデックスを配布します。
+
+[!note]
+入力FASTQには全染色体由来のリードが含まれていますが、STARが検索するリファレンスは1番染色体だけです。そのため、1番染色体以外に由来するリードはマッピングされません。また、全ゲノムでは複数箇所にマッピングされる配列が、この縮小版リファレンスでは一意にマッピングされたように判定される場合があります。
+
+したがって、今回得られるマッピング率やmulti-mapping率は、通常の全ゲノム解析結果とは直接比較できません。今回は、一連の解析操作を体験するための教材用リファレンスとして使用します。
+
+### 8.1 インデックスの保存先を作る
+
+STARインデックスを保存する空のディレクトリを作ります。
+
+```bash
+mkdir -p reference/star_index_GRCm39_chr1_ensembl116
+```
+
+### 8.2 STARインデックスを作る
+
+```bash
+STAR \
+    --runThreadN 4 \
+    --runMode genomeGenerate \
+    --genomeDir reference/star_index_GRCm39_chr1_ensembl116 \
+    --genomeFastaFiles \
+        reference/Mus_musculus.GRCm39.dna.chromosome.1.fa \
+    --sjdbGTFfile \
+        reference/Mus_musculus.GRCm39.116.chromosome.1.gtf \
+    --sjdbOverhang 75 \
+    --genomeSAindexNbases 12
+```
+
+`--sjdbOverhang`は、基本的に`リード長 - 1`を指定します。今回のリード長は76 bpなので、`75`を指定します。
+
+`--genomeSAindexNbases`は、STARの検索用インデックスの内部構造を調整する値です。通常の哺乳類全ゲノムではデフォルトの`14`を使用できますが、1番染色体だけの縮小版リファレンスに合わせて`12`へ小さくします。この値は、マッピングの許容ミスマッチ数やunique判定の基準ではありません。
+
+### 8.3 作成されたインデックスを確認する
+
+```bash
+ls -lh reference/star_index_GRCm39_chr1_ensembl116
+```
+
+`Genome`、`SA`、`SAindex`などのファイルが存在することを確認します。
+
+## 8. STARインデックスを確認する
 
 ### 8.1 配布されたインデックスを確認する
 
