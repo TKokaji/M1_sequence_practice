@@ -374,7 +374,7 @@ gzip -dc data/sample_R2.fastq.gz | awk 'END {print NR / 4}'
 paired-endでは、R1とR2のリード数が一致することを確認します。異なる場合は、正しいペアとして扱えないリードが含まれている可能性があります。
 
 > [!IMPORTANT]
-> **問：R1の最初のリードは何ですか？R1とR2のリード数は？**
+> 問：R1の最初のリードは何ですか？R1とR2のリード数は？
 
 <details>
 <summary>答を見る</summary>
@@ -472,7 +472,7 @@ FastQCの`PASS`、`WARN`、`FAIL`は、一定の基準に基づく機械的な�
 5. 必要な場合だけ前処理を行う
 
 
-> [!important]
+> [!IMPORTANT]
 > 問：FastQC ReportのPer base sequence qualityとPer base sequence contentを見て、比較的問題のあるリードの位置はどこですか？
 
 <details>
@@ -553,7 +553,7 @@ fastqc \
 
 前処理後にすべての警告が消える必要はありません。目的は、マッピングを妨げるアダプター配列や低品質末端を減らすことです。
 
-> [!important]
+> [!IMPORTANT]
 > 問：fastpによって除去されたリードは全体の何パーセントですか？
 
  <details>
@@ -576,15 +576,19 @@ fastqc \
 >
 >したがって、今回得られるマッピング率やmulti-mapping率は、通常の全ゲノム解析結果とは直接比較できません。今回は、一連の解析操作を体験するための教材用リファレンスとして使用します。
 
-### 8.1 インデックスの保存先を作る
+### 8.1 配布されたインデックスを確認する
 
-STARインデックスを保存する空のディレクトリを作ります。
+配布された`star_index_GRCm39_chr1_ensembl116`ディレクトリを`reference`の下に置きます。
 
 ```bash
-mkdir -p reference/star_index_GRCm39_chr1_ensembl116
+ls -lh reference/star_index_GRCm39_chr1_ensembl116
 ```
 
-### 8.2 STARインデックスを作る
+`Genome`、`SA`、`SAindex`などのファイルが存在することを確認します。
+
+### 8.2 STARインデックスの作成コマンド
+
+配布インデックスは、次のようなコマンドで作成します。**演習中に学生が実行する必要はありません**。
 
 ```bash
 STAR \
@@ -595,37 +599,18 @@ STAR \
         reference/Mus_musculus.GRCm39.dna.chromosome.1.fa \
     --sjdbGTFfile \
         reference/Mus_musculus.GRCm39.116.chromosome.1.gtf \
-    --sjdbOverhang 75 \
+    --sjdbOverhang 100 \
     --genomeSAindexNbases 12
 ```
 
-`--sjdbOverhang`は、基本的に`リード長 - 1`を指定します。今回のリード長は76 bpなので、`75`を指定します。
+`--sjdbOverhang`は、`リード長 - 1`を指定するのが王道です。今回の場合は、長さが76 bpのリードを想定しているため`75`ですが、デフォルト値の`100`でも実用上問題がないことが多いそうです。
+
+STARインデックス作成には時間、メモリ、ディスク容量が必要です。そのため、本演習では教員側で作成したものを配布します。
 
 `--genomeSAindexNbases`は、STARの検索用インデックスの内部構造を調整する値です。通常の哺乳類全ゲノムではデフォルトの`14`を使用できますが、1番染色体だけの縮小版リファレンスに合わせて`12`へ小さくします。この値は、マッピングの許容ミスマッチ数やunique判定の基準ではありません。
 
-### 8.3 作成されたインデックスを確認する
 
-```bash
-ls -lh reference/star_index_GRCm39_chr1_ensembl116
-```
-
-`Genome`、`SA`、`SAindex`などのファイルが存在することを確認します。
-
-## 8. STARインデックスを確認する
-
-### 8.1 配布されたインデックスを確認する
-
-配布された`star_index_GRCm39_ensembl116`ディレクトリを`reference`の下に置きます。
-
-```bash
-ls -lh reference/star_index_GRCm39_ensembl116
-```
-
-`Genome`、`SA`、`SAindex`などのファイルが存在することを確認します。
-
-### 8.2 STARインデックスの作成コマンド
-
-配布インデックスは、次のようなコマンドで作成します。このコマンドはインデックスの由来を明確にするために掲載しています。演習中に学生が実行する必要はありません。
+ちなみに全ゲノムインデックスは、次のようなコマンドで作成します。20GBを超えるファイルが生成されます。
 
 ```bash
 STAR \
@@ -639,20 +624,16 @@ STAR \
     --sjdbOverhang 100
 ```
 
-`--sjdbOverhang`は、`リード長 - 1`を指定するのが王道です。今回の場合は、長さが76 bpのリードを想定しているため`75`ですが、デフォルト値の100でも実用上問題がないことが多いそうです。
-
-全ゲノムのSTARインデックス作成には時間、メモリ、ディスク容量が必要です。そのため、本演習では教員側で作成したものを配布します。
-
 ---
 
 ## 9. STARでゲノムへマッピングする
 
-STARを使って、R1とR2をマウス全ゲノムへマッピングします。
+STARを使って、R1とR2をマウス1番染色体の縮小版リファレンスへマッピングします。
 
 ```bash
 STAR \
     --runThreadN 4 \
-    --genomeDir reference/star_index_GRCm39_ensembl116 \
+    --genomeDir reference/star_index_GRCm39_chr1_ensembl116 \
     --readFilesIn \
         results/fastp/sample_R1.trimmed.fastq.gz \
         results/fastp/sample_R2.trimmed.fastq.gz \
@@ -702,13 +683,14 @@ cat results/star/sample_Log.final.out
 - Number of reads mapped to multiple loci
 - % of reads unmapped
 
-今回のFASTQは元データの10%を無作為抽出したものなので、十分なリード数があれば、マッピング率は元データとおおむね同程度になると予想されます。
+今回のFASTQは全染色体由来のリードを含みますが、STARインデックスには1番染色体しか含まれていません。そのため、全ゲノムインデックスを使用した場合よりもマッピング率は低くなります。
 
-> **考えてみよう**
->
-> マッピング率が100%にならないのはなぜでしょうか。配列のquality、反復配列、複数箇所へのマッピング、塩基置換や挿入・欠失などを考えてみてください。
-
-STAR、samtools、featureCountsの集計結果の違いは、第15章でまとめて整理します。
+>[!IMPORTANT]
+>問：全部でいくつのリードが入力されたでしょうか。１つの場所のみにマッピングされたリードは何％でしょうか。
+<details>
+<summary>答えを見る</summary>
+答：FIXME
+</details>
 
 ---
 
