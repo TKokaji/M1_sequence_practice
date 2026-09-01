@@ -554,11 +554,11 @@ fastqc \
 前処理後にすべての警告が消える必要はありません。目的は、マッピングを妨げるアダプター配列や低品質末端を減らすことです。
 
 > [!IMPORTANT]
-> 問：fastpによって除去されたリードは全体の何パーセントですか？
+> 問：fastpによって除去されたリードは全体の何パーセントですか？残ったリードの数は？
 
  <details>
  <summary>回答例</summary>
- 約4.4%です。
+ 約4.4%です。5999054リードが残りました。
 </details>
 
 ---
@@ -569,26 +569,24 @@ fastqc \
 
 その前準備として、リファレンスゲノムと遺伝子アノテーションから検索用インデックスを作成します。
 
-今回は、Ensembl release 116のGRCm39の1番染色体のFASTAとGTFから事前に作成した縮小版STARインデックスを配布します。
+今回は、Ensembl release 116のGRCm39の1番染色体のFASTAとGTFから事前に作成した縮小版STARインデックスを作成します。
 
 > [!NOTE]
 > 入力FASTQには全染色体由来のリードが含まれていますが、STARが検索するリファレンスは1番染色体だけです。そのため、1番染色体以外に由来するリードはマッピングされません。また、全ゲノムでは複数箇所にマッピングされる配列が、この縮小版リファレンスでは一意にマッピングされたように判定される場合があります。
 >
 >したがって、今回得られるマッピング率やmulti-mapping率は、通常の全ゲノム解析結果とは直接比較できません。今回は、一連の解析操作を体験するための教材用リファレンスとして使用します。
 
-### 8.1 配布されたインデックスを確認する
+### 8.1 インデックスの保存先を作る
 
-配布された`star_index_GRCm39_chr1_ensembl116`ディレクトリを`reference`の下に置きます。
+STARインデックスを保存する空のディレクトリを作ります。
 
 ```bash
-ls -lh reference/star_index_GRCm39_chr1_ensembl116
+mkdir -p reference/star_index_GRCm39_chr1_ensembl116
 ```
 
-`Genome`、`SA`、`SAindex`などのファイルが存在することを確認します。
+### 8.2 STARインデックスを作る
 
-### 8.2 STARインデックスの作成コマンド
-
-配布インデックスは、次のようなコマンドで作成します。**演習中に学生が実行する必要はありません**。
+STARインデックスを作成するコマンドは以下の通りです。**1時間以上経っても完了しない場合は、中止して教員に配布インデックスをもらってください。**
 
 ```bash
 STAR \
@@ -605,12 +603,9 @@ STAR \
 
 `--sjdbOverhang`は、`リード長 - 1`を指定するのが王道です。今回の場合は、長さが76 bpのリードを想定しているため`75`ですが、デフォルト値の`100`でも実用上問題がないことが多いそうです。
 
-STARインデックス作成には時間、メモリ、ディスク容量が必要です。そのため、本演習では教員側で作成したものを配布します。
+`--genomeSAindexNbases`は、STARの検索用インデックスの内部構造を調整する値です。通常の哺乳類全ゲノムではデフォルトの`14`を使用できますが、1番染色体だけの縮小版リファレンスに合わせて`12`へ小さくします。
 
-`--genomeSAindexNbases`は、STARの検索用インデックスの内部構造を調整する値です。通常の哺乳類全ゲノムではデフォルトの`14`を使用できますが、1番染色体だけの縮小版リファレンスに合わせて`12`へ小さくします。この値は、マッピングの許容ミスマッチ数やunique判定の基準ではありません。
-
-
-ちなみに全ゲノムインデックスは、次のようなコマンドで作成します。20GBを超えるファイルが生成されます。
+ちなみに全ゲノムインデックスは、次のようなコマンドで作成します。20GBを超えるファイルが生成されます。実際の解析では必要ですが、20GBを超えるディスク容量が必要となるため、**こちらは実行しないでください。**
 
 ```bash
 STAR \
@@ -624,11 +619,19 @@ STAR \
     --sjdbOverhang 100
 ```
 
+### 8.3 作成されたインデックスを確認する
+
+```bash
+ls -lh reference/star_index_GRCm39_chr1_ensembl116
+```
+
+`Genome`、`SA`、`SAindex`などのファイルが存在することを確認します。
+
 ---
 
 ## 9. STARでゲノムへマッピングする
 
-STARを使って、R1とR2をマウス1番染色体の縮小版リファレンスへマッピングします。
+STARを使って、R1とR2をマウス1番染色体の縮小版リファレンスへマッピングします。**こちらもかなり時間がかかるかもしれません。3時間以上経っても完了しない場合は、教員に相談してください。**
 
 ```bash
 STAR \
@@ -686,10 +689,10 @@ cat results/star/sample_Log.final.out
 今回のFASTQは全染色体由来のリードを含みますが、STARインデックスには1番染色体しか含まれていません。そのため、全ゲノムインデックスを使用した場合よりもマッピング率は低くなります。
 
 >[!IMPORTANT]
->問：全部でいくつのリードが入力されたでしょうか。１つの場所のみにマッピングされたリードは何％でしょうか。
+>問：全部でいくつのリードが入力されたでしょうか。１つの場所のみにマッピングされたリードは何本（何％）でしょうか。複数の場所にマッピングされたリードは何本（何％）でしょうか。
 <details>
 <summary>答えを見る</summary>
-答：FIXME
+答：全部で2999527×２リードが入力されました。１つの場所のみにマッピングされたリードは482041本（16.07％）です。複数の場所にマッピングされたリードは43302本（1.44％）です。1番染色体のみのインデックスを使用しているため、マッピング率はとても低くなっています。ちなみに、全ゲノムのインデックスを使用した場合、マッピング率は１つの場所のみにマッピングされたリードは2661648本（88.74％）、複数の場所にマッピングされたリードは257828本（8.60％）程度になります。
 </details>
 
 ---
@@ -707,16 +710,10 @@ SAMは、各リードがゲノムのどこにマッピングされたかを記�
 
 今回はSTARから座標順ソート済みBAMを直接出力しています。SAMを中間ファイルとして保存せず、必要な部分だけ`samtools view`でSAM形式として表示します。
 
-以下では、BAMファイル名が長いため、シェル変数に保存します。
-
-```bash
-BAM_FILE="results/star/sample_Aligned.sortedByCoord.out.bam"
-```
-
 ### 11.2 BAMのヘッダーを表示する
 
 ```bash
-samtools view -H "$BAM_FILE"
+samtools view -H results/star/sample_Aligned.sortedByCoord.out.bam
 ```
 
 ヘッダーには、リファレンス配列、ソート順、使用したプログラムなどの情報が記録されています。
@@ -724,37 +721,89 @@ samtools view -H "$BAM_FILE"
 ### 11.3 BAMの先頭をSAM形式で表示する
 
 ```bash
-samtools view "$BAM_FILE" | head
+samtools view results/star/sample_Aligned.sortedByCoord.out.bam | head
 ```
 
 | 列 | 名前 | 意味 |
 | ---: | --- | --- |
-| 1 | QNAME | リード名 |
-| 2 | FLAG | マッピング状態を表すフラグ |
+| 1 | QNAME | リード名 (FASTQでのリード名) |
+| 2 | FLAG | マッピング状態を表すフラグ|
 | 3 | RNAME | マッピング先の染色体 |
 | 4 | POS | マッピング開始位置 |
 | 5 | MAPQ | mapping quality |
 | 6 | CIGAR | リファレンスに対するalignmentの形 |
+| 7 | RNEXT | ペアリードの相手の参照名 |
+| 8 | PNEXT | ペアリードの相手のマッピング開始位置 |
+| 9 | TLEN | テンプレート長 （1つのリードの先頭からもう1つのリードの末尾まで）|
+| 10 | SEQ | リード配列 |
+| 11 | QUAL | クオリティスコア （FASTQでの品質スコア）|
+
+#### 11.3.1 FLAG
+
+FLAGは、各リードのマッピング状態を表したものです。
+
+| 数字 | 意味 |
+| ---: | --- |
+| 1 | ペアエンドリード |
+| 2 | マッピング成功（ペアリードも） |
+| 4 | マッピング失敗 |
+| 8 | ペアリードがマッピング失敗 |
+| 16 | リバース鎖マッピング |
+| 32 | ペアリードがリバース鎖マッピング |
+| 64 | リード１(どっちのFASTQ由来か)|
+| 128 | リード２ （どっちのFASTQ由来か）|
+| 256 | ベストじゃないアラインメント（multiple mappingしたときの） |
+
+マッピング成功したペアリードはそれぞれ「99と147(1+2+32or16+64or128)」あるいは「83と163(1+2+16or32+64or128)」となります。
+
+片方しかマップされなかったペアリードは、それぞれ「73(1+8+64)と133(1+4+128)」などになります。
+
+256より大きい場合は、複数の位置でマッピングするリードのベストではないアラインメントとなります。複数の位置でマッピングするリードのベストのアラインメントは、ユニークな位置にマッピングされたものと同じFLAGになるため、**FLAGだけではマルチプルマッピングかどうかは断定できず、MAPQを見る必要があります**。
+
+#### 11.3.2 MAPQ
+
+MAPQは、mapping qualityはアラインメントの信頼度を表しますが、ソフトウェアによってやや異なった値が用いられるので注意しましょう。STARで覚えておくべきのは以下の3種類のみです。
+
+| MAPQ | 意味 |
+| --- | --- |
+| 255 | 品質が計算されていない、ユニークなマッピングを含む |
+| 1-10 | マッピング品質が低い (信頼度が低い) |
+| 0 | 複数箇所に全く同じスコアでマッピング、リピート配列由来が多い |
+
+ちなみに、エピゲノム解析で使うこともあるBowtie2では、ユニークなマッピングに相当するのは42です（なんで？）。
+
+#### 11.3.3 その他の列
+
+CIGARは、リファレンスに対するalignmentの形を表します。例えば、`10M1I5M`は、10塩基がマッチし、1塩基が挿入され、さらに5塩基がマッチしていることを示します。`7S68M`のように、`S`はソフトクリップ＝リードの一部がリファレンスにマッチせずに切り取られていることを表します。
 
 RNA-seqでは、exonをまたぐリードが存在します。CIGARに含まれる`N`は、リファレンス上で読み飛ばされた領域を表し、splice junctionに対応する場合があります。
+
+TLENは、テンプレート長を表します。ペアリードの場合、1つのリードの先頭からもう1つのリードの末尾までの距離です。
+
+QUALは、リード配列のクオリティスコアを表します。
+
+> [!IMPORTANT]
+> 問：２番目のアラインメントのCIGARは何でしょうか。何を意味しているでしょうか。
+
+<details>
+<summary>答えを見る</summary>
+答：２番目のアラインメントのCIGARは`7S68M`です。これは、最初の7塩基がソフトクリップされ、続く68塩基がリファレンスにマッチしていることを意味しています。
+</details>
 
 ### 11.4 BAMファイルが正常に作成されたことを確認する
 
 STARによって作成されたBAMファイルを確認します。
 
 ```bash
-ls -lh "$BAM_FILE"
-samtools quickcheck -v "$BAM_FILE"
+samtools quickcheck -v results/star/sample_Aligned.sortedByCoord.out.bam
 ```
 
 `samtools quickcheck`は、BAMファイルのヘッダーや末尾を調べ、ファイルが途中で切れていないかを簡易的に確認するコマンドです。問題がなければ、通常は何も表示されません。
 
-マッピング率や、一意にマッピングされたリードペアの割合は、前章で確認したSTARの`Log.final.out`を使用します。
-
-ちなみに、BAMに含まれる**アラインメント**の内訳は次のコマンドで確認できます。
+BAMに含まれる**アラインメント**の内訳は次のコマンドで確認できます。
 
 ```bash
-samtools flagstat "$BAM_FILE"
+samtools flagstat results/star/sample_Aligned.sortedByCoord.out.bam
 ```
 
 STARのログは主に**リードペア単位**、`flagstat`はBAM内のR1・R2それぞれのrecord単位で集計します。そのため、`flagstat`の`mapped`の割合をFASTQ全体のマッピング率として解釈することはできません。
@@ -766,8 +815,8 @@ STARのログは主に**リードペア単位**、`flagstat`はBAM内のR1・R2�
 BAMインデックスは、BAM内の特定のゲノム領域へ高速にアクセスするための索引です。
 
 ```bash
-samtools index "$BAM_FILE"
-ls -lh "$BAM_FILE"*
+samtools index results/star/sample_Aligned.sortedByCoord.out.bam
+ls -lh results/star/sample_Aligned.sortedByCoord.out.bam* 
 ```
 
 通常、BAMと`.bam.bai`が表示されます。
@@ -777,19 +826,18 @@ ls -lh "$BAM_FILE"*
 例として、各染色体にマッピングされたリード数を確認します。
 
 ```bash
-samtools idxstats "$BAM_FILE" | head
+samtools idxstats results/star/sample_Aligned.sortedByCoord.out.bam | head
 ```
 
-続いて、任意の領域を指定してalignmentを表示できます。次は15番染色体の一部を指定する例です。
+続いて、任意の領域を指定してalignmentを表示できます。次は1番染色体の一部を指定する例です。
 
 ```bash
-samtools view "$BAM_FILE" 15:30000000-30100000 | head
+samtools view results/star/sample_Aligned.sortedByCoord.out.bam 1:30000000-30100000 | head
 ```
 
 このような領域指定では、BAMが座標順にソートされ、インデックスが作成されている必要があります。指定した領域にリードがなければ、何も表示されません。
 
-> **重要**
->
+> [!NOTE]
 > BAMインデックスはfeatureCountsの実行には必須ではありません。特定領域の抽出やIGVでの表示など、BAMへランダムアクセスするときに必要です。
 
 ---
@@ -807,7 +855,7 @@ featureCounts \
     -p \
     --countReadPairs \
     -s 2 \
-    "$BAM_FILE"
+    results/star/sample_Aligned.sortedByCoord.out.bam
 ```
 
 ### 13.1 主なオプション
@@ -863,13 +911,19 @@ head results/counts/gene_counts.tsv
 | Length | 集計に用いられたexon領域の長さ |
 | BAMファイル名の列 | その遺伝子に割り当てられたraw count |
 
+> [!IMPORTANT]
+> 問：遺伝子PTMA (ENSMUSG00000026238)のraw countはいくつか？ ※grepで確認してみましょう。
+
+<details>
+<summary>答えを見る</summary>
+答：合計8181フラグメントが遺伝子PTMA (ENSMUSG00000026238)に割り当てられています。
+</details>
+
 ### 14.4 assignment summaryを確認する
 
 ```bash
-column -t results/counts/gene_counts.tsv.summary | less -S
+cat results/counts/gene_counts.tsv.summary
 ```
-
-`less`を終了するには`q`を押します。
 
 summaryでは、それぞれのfragmentが遺伝子へ割り当てられたか、割り当てられなかった場合は何が理由だったかを確認できます。
 
@@ -888,72 +942,32 @@ STARの`Uniquely mapped reads number`は、ゲノム上の1か所にマッピン
 ```text
 STARのUniquely mapped reads number
     ≒ Assigned
-    + Unassigned_NoFeatures
-    + Unassigned_Ambiguity
+    + Unassigned_NoFeatures (エクソン以外の領域へのマッピング)
+    + Unassigned_Ambiguity (重複する遺伝子の重複部分へのマッピング)
 ```
 
 一意にマッピングされたfragmentであっても、イントロン、遺伝子間領域、GTFに記載されていない領域にマッピングされた場合は、遺伝子のcountには入りません。また、今回のように`-s 2`を指定した場合、遺伝子のstrandと期待される向きが一致しないfragmentも、主に`Unassigned_NoFeatures`に含まれます。
 
-`Unassigned_MultiMapping`は上の合計には加えません。これはSTARの`Number of reads mapped to multiple loci`側に対応します。
-
 完全な等式ではなく`≒`としているのは、ソフトウェア間で判定と集計の方法が異なり、追加のフィルターを指定した場合には、ほかの`Unassigned_*`項目も考慮する必要があるためです。
 
----
+> [!NOTE]
+> もしマルチプルマッピングを配分したcountを計算したい場合は、別のカウントソフトウェア（16.4参照）を使用する必要があります。
 
-## 15. 3段階の確認結果を整理する
+> [!IMPORTANT]
+> 問：遺伝子に割り当てられたリードはいくつか？最初のFASTQファイルのうちの何割になったか？
 
-ここまでに、STARのマッピング結果、作成されたBAMファイル、featureCountsのassignment summaryを確認しました。それぞれ見ている段階と目的が異なります。
-
-| 確認する結果 | 解析段階 | 主な問い | 主に数えるもの |
-| --- | --- | --- | --- |
-| STARの`Log.final.out` | マッピング時 | リードペアはゲノムへどのようにマッピングされたか | 入力リードペアと、unique・multi-mapping・unmappedの割合 |
-| `samtools quickcheck` | BAM作成後 | BAMファイルが正常に作成されたか | BAMのヘッダーと末尾の簡易的な整合性 |
-| featureCountsのsummary | 遺伝子カウント時 | マッピングされたfragmentを遺伝子へ割り当てられたか | gene annotationに対するfragmentのAssigned・Unassigned |
-
-### 15.1 STARの`Log.final.out`
-
-STAR自身がマッピング時に作る集計です。ゲノム上の1か所にマッピングされたか、複数箇所にマッピングされたか、マッピングできなかったかを確認します。
-
-これは主に、**FASTQからゲノムへのマッピングがどの程度成功したか**を見る結果です。
-
-### 15.2 BAMファイルの確認
-
-`samtools quickcheck`を使い、BAMが途中で切れていないかを簡易的に確認します。マッピング率の評価はSTARの`Log.final.out`で行うため、今回の演習では`samtools flagstat`による詳細な統計は参考扱いとします。
-
-`flagstat`を実行した場合、STARと数値が直接一致するとは限りません。STARは主にリードペアを1単位として分類しますが、`flagstat`はBAMに保存されたR1・R2それぞれのalignment recordを数えるためです。
-
-### 15.3 featureCountsのsummary
-
-ゲノムへマッピングされたfragmentを、GTFに記載されたexonと`gene_id`へ割り当てた結果です。
-
-ゲノムへ正しくマッピングされても、exonに重ならないfragment、複数遺伝子に曖昧に重なるfragment、multi-mapping fragmentなどは、遺伝子のraw countに採用されないことがあります。
-
-これは主に、**マッピング結果のうち、どの程度を遺伝子発現量として利用できたか**を見る結果です。
-
-今回のオプションでは、STARで一意にマッピングされたリードペアは、featureCountsでおおむね次のように分かれます。
-
-```text
-Uniquely mapped reads number
-    ≒ Assigned
-    + Unassigned_NoFeatures
-    + Unassigned_Ambiguity
-```
-
-したがって、一般に次の数は同じにはなりません。
-
-```text
-FASTQの入力リードペア数
-    ≠ BAMのalignment record数
-    ≠ featureCountsで遺伝子にAssignedとなったfragment数
-```
+<details>
+<summary>答えを見る</summary>
+答：遺伝子に割り当てられたリード数は407380です。元のリード数が3137561なので、最初のFASTQファイルのうちの約13%が遺伝子に割り当てられたことになります。
+</details>
 
 ---
 
-## 16. 次の解析への接続
+## 15. 次の解析への接続
 
 本演習では、1サンプルのpaired-end FASTQからraw countを作成しました。
 
-複数サンプルのraw countがそろうと、サンプル間の発現量や発現変化を解析できます。続きは、「Pythonデータ解析入門」の`expression_analysis_revised.ipynb`を参照してください。
+複数サンプルのraw countがそろうと、サンプル間の発現量や発現変化を解析できます。続きは、「Pythonデータ解析入門」の`expression_analysis.ipynb`を参照してください。
 
 そちらのNotebookでは、主に次の処理を扱います。
 
@@ -971,17 +985,13 @@ FASTQの入力リードペア数
 
 ---
 
-## 17. 今回は実行しなかった工程
+## 16. 今回は実行しなかった工程
 
-### 17.1 前処理条件の最適化
-
-今回はfastpを使ってアダプター除去と低quality末端のトリミングを行いました。一方、quality閾値、最小リード長、既知アダプター配列の直接指定など、データに応じた詳細な条件の比較・最適化は行いません。
-
-### 17.2 MultiQC
+### 16.1 MultiQC
 
 MultiQCは、複数サンプルのFastQCやマッピング結果を1つのレポートにまとめるツールです。今回は1サンプルだけなので実行しません。多数のサンプルを扱う場合は、サンプル間で品質やマッピング率を比較するために有用です。
 
-### 17.3 rRNAや汚染配列の評価
+### 16.2 rRNAや汚染配列の評価
 
 mRNA-seqでは、ライブラリ調製時にpoly(A) RNAを選択したり、rRNAを除去したりします。この処理が不十分だと、rRNA由来のリードが多くなり、遺伝子発現解析に利用できるリードの割合が低下します。
 
@@ -989,7 +999,7 @@ rRNA混入は、rRNA配列へのマッピング、FastQCの`Overrepresented sequ
 
 今回は解析の中心をFASTQからgene countまでに絞るため、これらの評価は実行しません。
 
-### 17.4 duplicateの評価・処理
+### 16.3 duplicateの評価・処理
 
 duplicateは、同じ位置へ同じようにマッピングされたリードまたはfragmentです。PCR増幅によって生じるtechnical duplicateもありますが、RNA-seqでは高発現遺伝子から同じfragmentが独立に多数得られることもあります。
 
@@ -997,7 +1007,7 @@ duplicateは、同じ位置へ同じようにマッピングされたリード�
 
 UMIを付加したライブラリでは、UMIを利用してPCR duplicateを識別できるため、扱いが異なります。
 
-### 17.5 transcript-level定量
+### 16.4 transcript-level定量
 
 featureCountsは、今回はexonに重なるfragmentを`gene_id`単位で集計しています。一方、1つの遺伝子から複数の転写産物が作られる場合、どのisoformに由来するリードかを区別したいことがあります。
 
@@ -1005,120 +1015,17 @@ RSEM、Salmon、kallistoなどは、複数の転写産物に対応し得るリ�
 
 transcript-level定量では、共有exonに由来するリードをどの転写産物へ割り当てるかという不確実性があります。今回はSAM/BAMとgene-level countの関係を学ぶことを優先し、扱いません。
 
-### 17.6 発現量の正規化と発現変動解析
+### 16.5 発現量の正規化と発現変動解析
 
 CPMなどへの正規化、低発現遺伝子の除外、発現変化の計算および可視化は、「Pythonデータ解析入門」を参照してください。
 
-### 17.7 workflow化
+### 16.6 workflow化
 
-実際の解析では、複数サンプルに対して同じコマンドを実行するため、シェルスクリプト、Snakemake、Nextflowなどを使って処理を自動化することがあります。これは発展項目とします。
-
----
-
-## 18. 確認問題
-
-### 問1
-
-paired-end RNA-seqの1サンプルに対して、通常2つのFASTQファイルが作られるのはなぜですか。
-
-### 問2
-
-FASTQとFASTAの違いを説明してください。
-
-### 問3
-
-STARの入力と出力を、それぞれ挙げてください。
-
-### 問4
-
-SAMではなくBAMを保存する主な利点は何ですか。
-
-### 問5
-
-BAMインデックスはどのような処理で必要になりますか。また、featureCountsの実行には必須ですか。
-
-### 問6
-
-featureCountsで`-t exon -g gene_id`と指定した場合、何をどの単位で数えていますか。
-
-### 問7
-
-paired-endデータで`-p --countReadPairs`を指定する理由を説明してください。
-
-### 問8
-
-今回のfeatureCountsで`-s 2`を指定する理由を説明してください。
-
-### 問9
-
-featureCountsで得られる値は、CPMやTPMですか。それともraw countですか。
-
-### 問10
-
-RNA-seqでduplicateを機械的に除去しないことが多いのはなぜですか。
-
-### 問11
-
-1サンプルのcountデータだけで発現変動解析を行えないのはなぜですか。
+実際の解析では、複数サンプルに対して同じコマンドを実行するため、シェルスクリプト、Snakemake、Nextflowなどを使って処理を自動化することがあります。プログラミングのように解析フローをまとめて管理できるので、実際に解析を行う際には１ファイルにフローをまとめることも検討してみましょう。
 
 ---
 
-## 19. 確認問題の解答例
-
-<details>
-<summary>クリックすると解答例を表示します</summary>
-
-<br>
-
-### 問1
-
-同じcDNA fragmentの両端を読み、片方をR1、反対側をR2として保存するためです。
-
-### 問2
-
-FASTQはリードの塩基配列と塩基ごとのquality scoreを保存します。FASTAは主に塩基配列を保存し、quality scoreを含みません。
-
-### 問3
-
-主な入力はpaired-end FASTQとSTARインデックスです。主な出力はマッピング結果を保存したBAMと、マッピング率などを記録したログです。
-
-### 問4
-
-BAMはSAMの情報を圧縮したバイナリ形式であり、ファイルサイズが小さく、多くの解析ツールで効率よく処理できます。
-
-### 問5
-
-特定領域を`samtools view`で抽出するときや、IGVで表示するときなどに必要です。featureCountsがBAM全体を順番に読み込む処理には必須ではありません。
-
-### 問6
-
-GTFで`exon`として記載された領域に重なるfragmentを調べ、同じ`gene_id`を持つexonを遺伝子単位にまとめて数えています。
-
-### 問7
-
-R1とR2は同じfragmentに由来するため、別々の2リードではなく1 fragmentとして数えるためです。
-
-### 問8
-
-今回のデータがreverse-strandedライブラリだからです。`-s 2`を指定することで、リードの向きと遺伝子のstrandの関係を考慮してカウントします。
-
-### 問9
-
-正規化前のraw countです。
-
-### 問10
-
-RNA-seqでは、高発現遺伝子から独立に得られたfragmentが同じ位置へマッピングされることがあります。これらをPCR duplicateと区別せず除去すると、本来の発現シグナルまで減らす可能性があるためです。
-
-### 問11
-
-比較する条件がなく、サンプル間のばらつきも推定できないためです。発現変動解析には、比較する複数条件と生物学的反復が必要です。
-
-</details>
-
----
-
-## 20. 参考資料
+## 17. 参考資料
 
 - [STAR公式リポジトリ](https://github.com/alexdobin/STAR)
 - [SAMtools公式ドキュメント](https://www.htslib.org/doc/)
