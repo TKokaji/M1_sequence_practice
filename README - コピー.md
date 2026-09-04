@@ -28,125 +28,18 @@ RNA-seqでは、シーケンサーから得られた塩基配列を、そのま�
 
 ---
 
-## 2. WSLのインストールと作業ディレクトリ
+## 2. WSLと作業ディレクトリ
 
-この演習では、Windows上でLinux環境を利用できる**WSL（Windows Subsystem for Linux）**を使用します。
+この演習はWSL上で実行します。Windows側のエクスプローラーからWSL内のファイルを開くこともできますが、解析コマンドはWSLのターミナルで実行してください。
 
-RNA-seq解析で使用するSTAR、samtools、featureCountsなどのツールはLinux環境で広く利用されているため、この演習ではWSL上のUbuntuで解析を行います。
-
-> [!NOTE]
-> 以下のWSLインストール方法は、Windows 10 version 2004以降、またはWindows 11を想定しています。すでにWSLとUbuntuを使用できる場合は、**2.4 作業ディレクトリを作る**まで進んで構いません。
-
-### 2.1 WSLとUbuntuをインストールする
-
-まず、Windowsの**PowerShellを管理者権限で起動**します。
-
-1. Windowsのスタートメニューで`PowerShell`と検索する
-2. `Windows PowerShell`または`PowerShell`を右クリックする
-3. **「管理者として実行」**を選択する
-
-PowerShellで次のコマンドを実行します。
-
-```powershell
-wsl --install
-```
-
-このコマンドによって、WSLに必要なWindowsの機能が有効化され、標準のLinuxディストリビューションとしてUbuntuがインストールされます。
-
-インストール後に再起動を求められた場合は、Windowsを再起動してください。
-
-> [!NOTE]
-> `wsl --install`を実行してもインストールが始まらず、WSLのヘルプが表示される場合は、すでにWSL本体がインストールされている可能性があります。その場合は、PowerShellで次のコマンドを実行してUbuntuをインストールします。
->
-> ```powershell
-> wsl --install -d Ubuntu
-> ```
-
-### 2.2 Ubuntuを初めて起動する
-
-Windowsのスタートメニューから**Ubuntu**を起動します。
-
-初回起動時には、Ubuntu内で使用するユーザー名とパスワードの設定を求められます。
-
-```text
-Enter new UNIX username: （好きなユーザー名）
-New password: （好きなパスワード）
-Retype new password: （同じパスワード）
-```
-
-パスワードを入力している間は、画面に文字や`*`は表示されませんが、入力はされています。そのまま入力してEnterを押してください。
-
-設定が完了すると、次のようなLinuxのコマンド入力画面が表示されます。
-
-```text
-username@computer:~$
-```
-
-ここから先のRNA-seq解析コマンドは、基本的にこの**Ubuntuのターミナル**で実行します。
-
-### 2.3 WSLの動作を確認する
-
-Ubuntuのターミナルで次のコマンドを実行します。
-
-```bash
-pwd
-```
-
-例えば、次のように表示されればUbuntu内のホームディレクトリにいます。
-
-```text
-/home/username
-```
-
-続いて、Linuxが動いていることを確認します。
-
-```bash
-uname -a
-```
-
-WSLのバージョンはWindows側の**PowerShell**から確認できます。
-
-```powershell
-wsl -l -v
-```
-
-例えば次のように、Ubuntuの`VERSION`が`2`になっていればWSL 2で動作しています。
-
-```text
-  NAME      STATE           VERSION
-* Ubuntu    Running         2
-```
-
-> [!IMPORTANT]
-> この資料では、これ以降はほぼUbuntuのターミナルでコマンドを実行することを前提としています。間違ってPowerShellで実行しないように注意してください。
-
-### 2.4 作業ディレクトリを作る
-
-この演習用の作業ディレクトリを、Ubuntu側のホームディレクトリ内に作ります。
+### 2.1 作業ディレクトリを作る
 
 ```bash
 mkdir -p ~/rnaseq_intro
 cd ~/rnaseq_intro
 ```
 
-現在いる場所を確認します。
-
-```bash
-pwd
-```
-
-次のように表示されれば問題ありません。
-
-```text
-/home/username/rnaseq_intro
-```
-
-> [!NOTE]
-> WSLでは`/mnt/c/`以下からWindowsのCドライブにもアクセスできますが、この演習では解析ファイルをUbuntu側の`~/rnaseq_intro`に置いて作業します。
-
-### 2.5 ディレクトリ構成
-
-最終的には、おおよそ次のようなディレクトリ構成になります。
+### 2.2 ディレクトリ構成
 
 ```text
 rnaseq_intro/
@@ -156,9 +49,7 @@ rnaseq_intro/
 ├── reference/
 │   ├── Mus_musculus.GRCm39.dna.primary_assembly.fa
 │   ├── Mus_musculus.GRCm39.116.gtf
-│   ├── Mus_musculus.GRCm39.dna.chromosome.1.fa
-│   ├── Mus_musculus.GRCm39.116.chromosome.1.gtf
-│   └── star_index_GRCm39_chr1_ensembl116/
+│   └── star_index_GRCm39_ensembl116/
 └── results/
     ├── fastqc/
     │   ├── before_fastp/
@@ -168,7 +59,7 @@ rnaseq_intro/
     └── counts/
 ```
 
-必要なディレクトリを作ります。エクスプローラー上で作成しても構いませんが、ここではコマンドで作成します。
+必要なディレクトリを作ります。エクスプローラー上で作成しても構いません。
 
 ```bash
 mkdir -p data
@@ -180,17 +71,7 @@ mkdir -p results/star
 mkdir -p results/counts
 ```
 
-作成されたディレクトリを確認します。
-
-```bash
-ls
-```
-
-```text
-data  reference  results
-```
-
-教材用FASTQは、後ほど`data`ディレクトリに配置します。
+教材用FASTQを`data`ディレクトリに配置します。
 
 ---
 
